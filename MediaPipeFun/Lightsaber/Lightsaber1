@@ -1,0 +1,202 @@
+#pip install mediapipe
+
+import cv2
+import mediapipe as mp
+import numpy as np
+
+#functions
+def getPixel(x,y):
+    pixel = (round(x*width), round(y*height))
+    return pixel
+
+def DrawLightsaber(hand, image, colour):
+    point5x = hand[5].x
+    point5y = hand[5].y
+    
+    #point = getPixel(point5x, point5y)
+    #cv2.circle(image, (point), 10, (0, 200, 255), 8)
+    
+    point17x = hand[17].x
+    point17y = hand[17].y
+
+    point0x = hand[0].x
+    point0y = hand[0].y
+
+    point6x = hand[6].x
+    point6y = hand[6].y
+
+    point18x = hand[18].x
+    point18y = hand[18].y
+
+    pointAx = (point5x+point17x+point6x+point18x)/4
+    pointAy = (point5y+point17y+point6y+point18y)/4
+
+    pointBx = (pointAx*3+point0x)/4
+    pointBy = (pointAy*3+point0y)/4
+
+    #pointA = getPixel(pointAx, pointAy)
+    #pointB = getPixel(pointBx, pointBy)
+
+    #cv2.line(image, pointA, pointB,(255,0,0),7)
+
+    hiltx = point5x-point17x
+    hilty = point5y-point17y
+
+    pointA2x = pointAx+hiltx
+    pointA2y = pointAy+hilty
+
+    pointB2y = pointBy+hilty
+    pointB2x = pointBx+hiltx
+
+    #----hilt-----
+
+    pointA2 = getPixel(pointA2x, pointA2y)
+    pointB2 = getPixel(pointB2x, pointB2y)
+
+    cv2.line(image, pointA2, pointB2, (255, 0, 0), 7)
+
+    pointA3x = pointAx-hiltx
+    pointA3y = pointAy-hilty
+
+    pointB3y = pointBy-hilty
+    pointB3x = pointBx-hiltx
+
+    pointA3 = getPixel(pointA3x, pointA3y)
+    pointB3 = getPixel(pointB3x, pointB3y)
+
+    pts = [pointA2, pointB2, pointB3, pointA3]
+
+    cv2.fillPoly(image, np.array([pts]),(0,10,10))
+
+    #---blade---
+    lenght=11
+
+    pointA4x = pointA3x+hiltx*lenght
+    pointA4y = pointA3y+hilty*lenght
+
+    pointB4x = pointB3x+hiltx*lenght
+    pointB4y = pointB3y+hilty*lenght
+
+
+    pointA4 = getPixel(pointA4x, pointA4y)
+    pointB4 = getPixel(pointB4x, pointB4y)
+
+    pts = [pointA2, pointB2, pointB4, pointA4]
+    cv2.fillPoly(image, np.array([pts]), colour)
+
+    whitepointA4x = (pointA4x*3+pointB4x)/4
+    whitepointB4x = (pointA4x+pointB4x*3)/4
+
+    whitepointA4y = (pointA4y*3+pointB4y)/4
+    whitepointB4y = (pointA4y+pointB4y*3)/4
+
+    whitepointA2x = (pointA2x*3+pointB2x)/4
+    whitepointB2x = (pointA2x+pointB2x*3)/4
+
+    whitepointA2y = (pointA2y*3+pointB2y)/4
+    whitepointB2y = (pointA2y+pointB2y*3)/4
+
+    whitepointA4, whitepointB4 = getPixel(whitepointA4x, whitepointA4y), getPixel(whitepointB4x, whitepointB4y)
+    whitepointA2, whitepointB2 = getPixel(
+        whitepointA2x, whitepointA2y), getPixel(whitepointB2x, whitepointB2y)
+
+    pts2 = [whitepointA4, whitepointB4, whitepointB2, whitepointA2]
+    cv2.fillPoly(image, np.array([pts2]), (255,255,255))
+
+    return 0
+
+
+
+#config
+pose=0
+face=0
+camera=0
+leftHand=1
+rightHand=1
+
+leftSwordColour = (110, 255, 110)
+rightSwordColour = (255, 110, 110)
+
+width = 1920
+height = 1050
+
+
+
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
+mp_holistic = mp.solutions.holistic
+
+# For webcam input:
+
+cap = cv2.VideoCapture(camera, cv2.CAP_DSHOW)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+
+with mp_holistic.Holistic(
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5) as holistic:
+  while cap.isOpened():
+    success, image = cap.read()
+    if not success:
+      print("Ignoring empty camera frame.")
+      # If loading a video, use 'break' instead of 'continue'.
+      continue
+
+    # To improve performance, optionally mark the image as not writeable to
+    # pass by reference.
+    image.flags.writeable = False
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = holistic.process(image)
+
+    # Draw landmark annotation on the image.
+    image.flags.writeable = True
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    if face==1:
+        mp_drawing.draw_landmarks(
+            image,
+            results.face_landmarks,
+            mp_holistic.FACEMESH_CONTOURS,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=mp_drawing_styles
+            .get_default_face_mesh_contours_style())
+
+    if pose==1:
+        mp_drawing.draw_landmarks(
+            image,
+            results.pose_landmarks,
+            mp_holistic.POSE_CONNECTIONS,
+            landmark_drawing_spec=mp_drawing_styles
+            .get_default_pose_landmarks_style())
+
+    if leftHand==1:
+        mp_drawing.draw_landmarks(
+            image,
+            results.left_hand_landmarks,
+            mp_holistic.HAND_CONNECTIONS,
+            landmark_drawing_spec=mp_drawing_styles
+            .get_default_hand_landmarks_style())
+
+        if results.left_hand_landmarks is not None:
+            DrawLightsaber(results.left_hand_landmarks.landmark, image, leftSwordColour)
+
+
+    if rightHand == 1:
+        mp_drawing.draw_landmarks(
+            image,
+            results.right_hand_landmarks,
+            mp_holistic.HAND_CONNECTIONS,
+            landmark_drawing_spec=mp_drawing_styles
+            .get_default_hand_landmarks_style())
+        
+        if results.right_hand_landmarks is not None:
+            DrawLightsaber(results.right_hand_landmarks.landmark,
+                           image, rightSwordColour)
+
+
+
+    # Flip the image horizontally for a selfie-view display.
+    cv2.imshow('MediaPipe Holistic', cv2.flip(image, 1))
+    if cv2.waitKey(5) & 0xFF == ord("q"):
+      break
+cap.release()
